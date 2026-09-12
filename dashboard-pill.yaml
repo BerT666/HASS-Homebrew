@@ -1,0 +1,112 @@
+title: Holzlar
+views:
+- path: default_view
+  title: Pill
+  cards:
+  - type: entities
+    entities:
+    - entity: sensor.greenpillgaerdauer
+    - entity: sensor.greenpill_temperature
+      secondary_info: last-updated
+      icon: mdi:thermometer-lines
+    - entity: sensor.pill_velocity_d
+      secondary_info: last-changed
+    - entity: sensor.pill_velocity_w
+      secondary_info: last-changed
+    - entity: sensor.greenpillabv
+      secondary_info: last-changed
+      name: KellerPillABV
+    - entity: sensor.greenpill_battery
+      secondary_info: last-changed
+    title: Sensor
+    show_header_toggle: true
+  - color: none
+    type: entities
+    entities:
+    - entity: sensor.kpill_brix
+      secondary_info: last_changed
+    - entity: sensor.kellerpillsgx1k
+      secondary_info: last_updated
+    - entity: sensor.111_pilltagesmittel_2
+      secondary_info: last_changed
+    - entity: sensor.111_pillvwochenmittel
+      secondary_info: last_changed
+    title: SG / Brix
+  - type: entities
+    entities:
+    - entity: sensor.tempkellerwifi_luftfeuchtigkeit
+      name: Luftfeuchtigkeit
+      secondary_info: last-updated
+    - entity: sensor.tempkellerwifi_temperatur
+      name: Temperatur
+      secondary_info: last-updated
+    title: TempKellerWiFi (last Upd)
+  - type: entities
+    entities:
+    - entity: input_number.greenpillog
+      secondary_info: last_updated
+    - entity: input_number.met_zieltemperatur
+      secondary_info: last_changed
+    - entity: sensor.pill_tagesmittel_stabil
+    - entity: sensor.pill_wochenmittel_stabil
+    - entity: switch.plugmetwarmlocal
+      secondary_info: last_changed
+      type: simple-entity
+    - entity: switch.plugmetkaltlokal
+      secondary_info: last_changed
+      type: simple-entity
+    - entity: input_number.met_coldcrash_zieltemperatur
+      secondary_info: last_changed
+    - entity: input_text.met_coldcrash_dauer
+      secondary_info: last_changed
+    - entity: input_number.greenpillfg
+      secondary_info: last_updated
+    title: Helfer
+    show_header_toggle: false
+  - type: entities
+    title: Energie (dieser Ansatz)
+    entities:
+    - entity: sensor.keller_plugmetwarmlocal_met_ansatz_energie_warm
+      name: Heizung
+      secondary_info: last_changed
+    - entity: sensor.keller_plugmetkaltlokal_met_ansatz_energie_kalt
+      name: Kühlung
+      secondary_info: last_changed
+  - type: vertical-stack
+    cards:
+    - type: history-graph
+      title: Pill Temperatur (12h)
+      hours_to_show: 12
+      entities:
+      - entity: sensor.greenpill_temperature
+        name: Fass-Temp
+    - type: history-graph
+      title: Heizen / Kühlen (12h)
+      hours_to_show: 12
+      entities:
+      - entity: switch.plugmetwarmlocal
+        name: Heizen
+      - entity: switch.plugmetkaltlokal
+        name: Kühlen
+    - type: history-graph
+      title: KellerPillSGx1k (12h)
+      hours_to_show: 12
+      entities:
+      - entity: sensor.kellerpillsgx1k
+        name: SG
+  visible:
+  - user: 82c05f5749ac42439b5acbbeecd600c3
+- title: Drücker
+  path: button
+  cards:
+  - type: entities
+    entities:
+    - entity: input_button.greenpillfermentstart
+      secondary_info: state
+    - entity: input_button.greenpillfermentstop
+      secondary_info: state
+    - entity: input_button.greenpillcoldcrashstart
+      secondary_info: state
+    - entity: input_button.greenpillcoldcrashstop
+      secondary_info: state
+  type: masonry
