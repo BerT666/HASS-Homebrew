@@ -28,6 +28,9 @@ Nothing is hardcoded — every entity is picked through a selector when you crea
 
 Originally built to control a converted IKEA KALLNAT fridge as a mead fermentation chamber, using a RAPT Pill Bluetooth hydrometer for temperature, a heat belt for backup heat, and the fridge's own compressor (via a smart plug) for cooling. Generalized here so the same logic works with any hydrometer/sensor and any switch-controlled heater/cooler.
 
+## Future:
+will add fermentation monitoring and alerting based on SG, °B / °P will maybe follow.
+
 ## License
 
 [MIT](LICENSE)
