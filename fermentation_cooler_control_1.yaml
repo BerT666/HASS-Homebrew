@@ -1,0 +1,212 @@
+blueprint:
+  name: Fermentation Chamber - Cooler Control
+  description: >
+    Keeps a fermentation chamber below a target temperature by
+    switching a cooling actuator (e.g. a fridge/freezer compressor
+    via a smart plug) on and off around an `input_number` target,
+    with hysteresis and a minimum pause/runtime to protect the
+    compressor from short-cycling, plus a periodic backup check.
+
+    Originally built around a converted fridge (KALLNAT-style) used
+    as a fermentation chamber with a Bluetooth hydrometer (RAPT
+    Pill / Tilt), but works with any temperature sensor and switch.
+    Pair with the matching "Fermentation Chamber - Heater Control"
+    and "Fermentation Chamber - Sensor Watchdog" blueprints for full
+    two-way temperature control with a sensor fail-safe.
+  domain: automation
+  author: BerT
+  source_url: https://github.com/BerT666/HASS-Homebrew/blob/main/fermentation_cooler_control.yaml
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    entities:
+      name: Entities
+      icon: mdi:snowflake
+      input:
+        temperature_sensor:
+          name: Temperature sensor
+          description: Sensor reporting the current fermentation temperature.
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        target_temperature:
+          name: Target temperature helper
+          description: >-
+            An input_number helper holding the desired fermentation
+            temperature (same unit as the sensor).
+          selector:
+            entity:
+              domain: input_number
+        fermentation_active:
+          name: '"Fermentation active" toggle'
+          description: >-
+            An input_boolean helper that must be on for this
+            automation to act. Turn it off between batches so the
+            compressor never runs with an empty chamber.
+          selector:
+            entity:
+              domain: input_boolean
+        cooler_switch:
+          name: Cooler switch
+          description: >-
+            The switch controlling the cooling actuator (e.g. the
+            fridge compressor's smart plug).
+          selector:
+            entity:
+              domain: switch
+        heater_switches:
+          name: Heater switch(es) (optional)
+          description: >-
+            If the chamber is also actively heated, select the
+            heater switch(es) here so cooling never turns on while
+            heating is running.
+          default: []
+          selector:
+            entity:
+              domain: switch
+              multiple: true
+    settings:
+      name: Settings
+      icon: mdi:cog
+      collapsed: true
+      input:
+        turn_on_offset:
+          name: Turn-on offset
+          description: >-
+            How far above the target temperature the reading must
+            rise before cooling switches on.
+          default: 0.3
+          selector:
+            number:
+              min: 0
+              max: 5
+              step: 0.01
+              unit_of_measurement: "°"
+              mode: box
+        turn_off_offset:
+          name: Turn-off offset
+          description: >-
+            How close to the target (from above) the reading must
+            drop before cooling switches off again. Keep this
+            smaller than the turn-on offset.
+          default: 0.25
+          selector:
+            number:
+              min: 0
+              max: 5
+              step: 0.01
+              unit_of_measurement: "°"
+              mode: box
+        dwell_time:
+          name: Dwell time
+          description: >-
+            How long the temperature must stay past a threshold
+            before acting on it. Debounces sensor noise/spikes.
+          default: 5
+          selector:
+            number:
+              min: 0
+              max: 60
+              unit_of_measurement: min
+              mode: box
+        min_off_time:
+          name: Minimum pause before restart
+          description: >-
+            Minimum time the cooler must stay off before it is
+            allowed to switch on again (compressor protection).
+          default: 5
+          selector:
+            number:
+              min: 0
+              max: 60
+              unit_of_measurement: min
+              mode: box
+        min_on_time:
+          name: Minimum runtime
+          description: >-
+            Minimum time the cooler must stay on before it is
+            allowed to switch off again (compressor protection).
+          default: 5
+          selector:
+            number:
+              min: 0
+              max: 60
+              unit_of_measurement: min
+              mode: box
+        backup_check_interval:
+          name: Backup check interval
+          description: >-
+            Safety-net re-evaluation interval, in case a
+            sensor-update event is ever missed.
+          default: 5
+          selector:
+            number:
+              min: 1
+              max: 60
+              unit_of_measurement: min
+              mode: box
+
+mode: single
+max_exceeded: silent
+
+variables:
+  temperature_sensor: !input temperature_sensor
+  target_temperature: !input target_temperature
+  heater_switches: !input heater_switches
+  turn_on_offset: !input turn_on_offset
+  turn_off_offset: !input turn_off_offset
+
+triggers:
+  - trigger: numeric_state
+    entity_id: !input temperature_sensor
+    above: !input target_temperature
+    for:
+      minutes: !input dwell_time
+  - trigger: numeric_state
+    entity_id: !input temperature_sensor
+    below: !input target_temperature
+    for:
+      minutes: !input dwell_time
+  - trigger: time_pattern
+    minutes: !input backup_check_interval
+
+conditions:
+  - condition: state
+    entity_id: !input fermentation_active
+    state: "on"
+
+actions:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ states(temperature_sensor) | float(0) >
+                 states(target_temperature) | float(0) + turn_on_offset | float(0) }}
+          - condition: state
+            entity_id: !input cooler_switch
+            state: "off"
+            for:
+              minutes: !input min_off_time
+          - condition: template
+            value_template: >-
+              {{ expand(heater_switches) | selectattr('state', 'eq', 'on')
+                 | list | length == 0 }}
+        sequence:
+          - action: switch.turn_on
+            target:
+              entity_id: !input cooler_switch
+      - conditions:
+          - condition: template
+            value_template: >-
+              {{ states(temperature_sensor) | float(0) <=
+                 states(target_temperature) | float(0) + turn_off_offset | float(0) }}
+          - condition: state
+            entity_id: !input cooler_switch
+            state: "on"
+            for:
+              minutes: !input min_on_time
+        sequence:
+          - action: switch.turn_off
+            target:
+              entity_id: !input cooler_switch

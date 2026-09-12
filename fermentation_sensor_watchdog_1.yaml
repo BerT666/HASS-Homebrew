@@ -1,0 +1,123 @@
+blueprint:
+  name: Fermentation Chamber - Sensor Watchdog
+  description: >
+    Fail-safe for temperature-controlled fermentation chambers: if
+    the temperature sensor (e.g. a Bluetooth hydrometer like a RAPT
+    Pill or Tilt) goes unavailable/unknown for a configurable time,
+    this turns off the listed heater/cooler switches - rather than
+    letting them keep running on a stale reading - and runs a
+    notify action of your choice. A second notify action runs once
+    the sensor is reporting valid values again.
+
+    Pair with the matching "Fermentation Chamber - Heater Control"
+    and "Fermentation Chamber - Cooler Control" blueprints for a
+    complete temperature-control setup.
+  domain: automation
+  author: BerT
+  source_url: https://github.com/BerT666/HASS-Homebrew/blob/main/fermentation_sensor_watchdog.yaml
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    entities:
+      name: Entities
+      icon: mdi:radar
+      input:
+        temperature_sensor:
+          name: Temperature sensor
+          description: The sensor to monitor for unavailable/unknown state.
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        actuator_switches:
+          name: Actuator switch(es) to turn off
+          description: >-
+            Heater/cooler switches to turn off as soon as the
+            sensor goes stale.
+          default: []
+          selector:
+            entity:
+              domain: switch
+              multiple: true
+    settings:
+      name: Settings
+      icon: mdi:cog
+      collapsed: true
+      input:
+        stale_after:
+          name: Stale after
+          description: >-
+            How long the sensor must be unavailable/unknown before
+            the actuators are turned off and the alert fires.
+          default: 5
+          selector:
+            number:
+              min: 1
+              max: 60
+              unit_of_measurement: min
+              mode: box
+        notify_on_stale:
+          name: Notify action - sensor went stale
+          description: >-
+            Action(s) to run when the sensor goes stale, e.g. a
+            notify service call, a Telegram message, or a
+            persistent_notification.create. Leave empty to only
+            turn off the actuators without notifying.
+          default: []
+          selector:
+            action: {}
+        notify_on_restored:
+          name: Notify action - sensor restored
+          description: >-
+            Action(s) to run once the sensor is reporting valid
+            values again. Leave empty to skip notifying.
+          default: []
+          selector:
+            action: {}
+
+mode: single
+max_exceeded: silent
+
+variables:
+  actuator_switches: !input actuator_switches
+
+triggers:
+  - trigger: state
+    entity_id: !input temperature_sensor
+    to:
+      - "unavailable"
+      - "unknown"
+    for:
+      minutes: !input stale_after
+    id: stale
+  - trigger: state
+    entity_id: !input temperature_sensor
+    from:
+      - "unavailable"
+      - "unknown"
+    id: restored
+
+conditions: []
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: stale
+        sequence:
+          - action: switch.turn_off
+            target:
+              entity_id: "{{ actuator_switches }}"
+          - sequence: !input notify_on_stale
+      - conditions:
+          - condition: trigger
+            id: restored
+          - condition: not
+            conditions:
+              - condition: state
+                entity_id: !input temperature_sensor
+                state: "unavailable"
+              - condition: state
+                entity_id: !input temperature_sensor
+                state: "unknown"
+        sequence: !input notify_on_restored
